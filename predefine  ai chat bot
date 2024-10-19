@@ -1,0 +1,100 @@
+import nltk
+from nltk.stem import WordNetLemmatizer
+import numpy as np
+import random
+import json
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load pre-defined intents (you can extend this JSON with more intents)
+intents = {
+    "intents": [
+        {
+            "tag": "greeting",
+            "patterns": ["Hi", "Hello", "How are you?", "Good morning", "Good evening"],
+            "responses": ["Hello!", "Hi there!", "Greetings!", "How can I assist you?"]
+        },
+        {
+            "tag": "goodbye",
+            "patterns": ["Bye", "See you later", "Goodbye", "Catch you later"],
+            "responses": ["Goodbye!", "See you soon!", "Take care!", "Bye! Have a great day!"]
+        },
+        {
+            "tag": "thanks",
+            "patterns": ["Thanks", "Thank you", "That's helpful", "Thanks a lot!"],
+            "responses": ["You're welcome!", "Happy to help!", "Anytime!"]
+        },
+        {
+            "tag": "about",
+            "patterns": ["What can you do?", "Tell me about yourself", "What is your purpose?"],
+            "responses": ["I am a simple bot created to answer your questions.", "I'm here to help you with basic information."]
+        },
+        {
+            "tag": "noanswer",
+            "patterns": [],
+            "responses": ["Sorry, I don't understand that.", "I'm not sure how to respond to that."]
+        }
+    ]
+}
+
+# Lemmatizer for normalizing the input
+lemmatizer = WordNetLemmatizer()
+
+# Tokenize and lemmatize input sentence
+def tokenize_and_lemmatize(sentence):
+    tokens = nltk.word_tokenize(sentence)
+    tokens = [lemmatizer.lemmatize(token.lower()) for token in tokens]
+    return tokens
+
+# Find the intent that best matches the user input
+def get_intent(user_input, intents):
+    all_patterns = []
+    all_intents = []
+    
+    # Collect all patterns and tags for vectorization
+    for intent in intents['intents']:
+        for pattern in intent['patterns']:
+            all_patterns.append(pattern)
+            all_intents.append(intent['tag'])
+
+    # Vectorize the patterns using CountVectorizer
+    vectorizer = CountVectorizer(tokenizer=tokenize_and_lemmatize)
+    pattern_vectors = vectorizer.fit_transform(all_patterns)
+    
+    # Vectorize the user input
+    input_vector = vectorizer.transform([user_input])
+    
+    # Compute cosine similarity
+    similarities = cosine_similarity(input_vector, pattern_vectors)
+    
+    # Get the most similar intent
+    best_match_idx = np.argmax(similarities)
+    if similarities[0, best_match_idx] > 0.3:  # Set a threshold for matching
+        return all_intents[best_match_idx]
+    else:
+        return "noanswer"
+
+# Get a response based on the intent
+def get_response(intent, intents_json):
+    for intent_data in intents_json['intents']:
+        if intent_data['tag'] == intent:
+            return random.choice(intent_data['responses'])
+
+# Chat function
+def chat():
+    print("AI Bot: Hello! How can I help you today? (Type 'quit' to exit)")
+
+    while True:
+        user_input = input("You: ").strip()
+        if user_input.lower() == "quit":
+            print("AI Bot: Goodbye!")
+            break
+        
+        # Get the intent and response
+        intent = get_intent(user_input, intents)
+        response = get_response(intent, intents)
+        print(f"AI Bot: {response}")
+
+# Start the chatbot
+if __name__ == "__main__":
+    chat()
